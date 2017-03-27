@@ -12,12 +12,13 @@ from pycuda.tools import context_dependent_memoize
 from pycuda.compiler import SourceModule
 from pycuda.reduction import ReductionKernel
 
-from pycuda import cumath
+#from pycuda import cumath
 
-import pycuda.gpuarray as gpuarray
-import pycuda.driver as drv
-import pycuda.elementwise as el
-import pycuda.tools as tools
+#import pycuda.gpuarray as gpuarray
+import cupy as gpuarray
+#import pycuda.driver as drv
+#import pycuda.elementwise as el
+#import pycuda.tools as tools
 import numpy as np
 
 from . import cublas
@@ -184,7 +185,7 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
     lda = max(1, m)
 
     # Allocate the array of singular values:
-    s_gpu = gpuarray.empty(min(m, n), real_type, allocator=alloc)
+    s_gpu = gpuarray.empty(min(m, n), real_type) #, allocator=alloc)
 
     # cusolver only supports jobu = jobvt = 'A':
     jobu = jobu.upper()
@@ -195,9 +196,9 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
     # Set the leading dimension and allocate u:
     ldu = m
     if jobu == 'A':
-        u_gpu = gpuarray.empty((ldu, m), data_type, allocator=alloc)
+        u_gpu = gpuarray.empty((ldu, m), data_type) #, allocator=alloc)
     elif jobu == 'S':
-        u_gpu = gpuarray.empty((min(m, n), ldu), data_type, allocator=alloc)
+        u_gpu = gpuarray.empty((min(m, n), ldu), data_type) #, allocator=alloc)
     elif jobu == 'O':
         if not square:
             raise ValueError('in-place computation of singular vectors '+
@@ -206,15 +207,15 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
         u_gpu = a_gpu
     else:
         ldu = 1
-        u_gpu = gpuarray.empty((), data_type, allocator=alloc)
+        u_gpu = gpuarray.empty((), data_type) #, allocator=alloc)
 
     # Set the leading dimension and allocate vh:
     if jobvt == 'A':
         ldvt = n
-        vh_gpu = gpuarray.empty((n, n), data_type, allocator=alloc)
+        vh_gpu = gpuarray.empty((n, n), data_type) #, allocator=alloc)
     elif jobvt == 'S':
         ldvt = min(m, n)
-        vh_gpu = gpuarray.empty((n, ldvt), data_type, allocator=alloc)
+        vh_gpu = gpuarray.empty((n, ldvt), data_type) #, allocator=alloc)
     elif jobvt == 'O':
         if jobu == 'O':
             raise ValueError('jobu and jobvt cannot both be O')
@@ -225,13 +226,13 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
         vh_gpu = a_gpu
     else:
         ldvt = 1
-        vh_gpu = gpuarray.empty((), data_type, allocator=alloc)
+        vh_gpu = gpuarray.empty((), data_type) #, allocator=alloc)
 
     # Compute SVD and check error status:
     if lib == 'cula':
-        func(jobu, jobvt, m, n, int(a_gpu.gpudata),
-             lda, int(s_gpu.gpudata), int(u_gpu.gpudata),
-             ldu, int(vh_gpu.gpudata), ldvt)
+        func(jobu, jobvt, m, n, int(a_gpu.data),
+             lda, int(s_gpu.data), int(u_gpu.data),
+             ldu, int(vh_gpu.data), ldvt)
 
         # Free internal CULA memory:
         cula.culaFreeBuffers()
@@ -239,8 +240,8 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
         # Allocate working space:
         Lwork = bufsize(misc._global_cusolver_handle, m, n)
 
-        Work = gpuarray.empty(Lwork, data_type, allocator=alloc)
-        devInfo = gpuarray.empty(1, np.int32, allocator=alloc)
+        Work = gpuarray.empty(Lwork, data_type) #, allocator=alloc)
+        devInfo = gpuarray.empty(1, np.int32) #, allocator=alloc)
 
         # rwork is only needed for complex arrays:
         if data_type != real_type:
@@ -248,11 +249,11 @@ def svd(a_gpu, jobu='A', jobvt='A', lib='cula'):
         else:
             rwork = 0
         func(misc._global_cusolver_handle,
-             jobu, jobvt, m, n, int(a_gpu.gpudata),
-             lda, int(s_gpu.gpudata), int(u_gpu.gpudata),
-             ldu, int(vh_gpu.gpudata), ldvt, 
-             int(Work.gpudata), Lwork, rwork,
-             int(devInfo.gpudata))
+             jobu, jobvt, m, n, int(a_gpu.data),
+             lda, int(s_gpu.data), int(u_gpu.data),
+             ldu, int(vh_gpu.data), ldvt, 
+             int(Work.data), Lwork, rwork,
+             int(devInfo.data))
 
         # Free working space:
         del rwork, Work, devInfo
